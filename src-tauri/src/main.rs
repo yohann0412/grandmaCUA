@@ -1,7 +1,15 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-// Learn more about Tauri commands at https://v1.tauri.app/v1/guides/features/command
+use global_hotkey::GlobalHotKeyEvent;
+use global_hotkey::{
+    hotkey::{Code, HotKey, Modifiers},
+    GlobalHotKeyManager,
+};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -56,12 +64,53 @@ fn capture_screen() -> Result<String, String> {
 }
 
 fn main() {
+    // Initialize the global hotkey manager
+    let hotkey_manager = match GlobalHotKeyManager::new() {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("Failed to create global hotkey manager: {}", e);
+            return;
+        }
+    };
+
+    // Create the hotkey for Command+Shift+S (screenshot)
+    // You can change this to any single-key combination you prefer
+    let hotkey = HotKey::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyS); // Command+Shift+S
+
+    // Register the hotkey
+    if let Err(e) = hotkey_manager.register(hotkey) {
+        eprintln!("Failed to register hotkey: {}", e);
+    } else {
+        println!("Global hotkey registered: Command+Shift+S");
+    }
+
+    // Start a thread to listen for hotkey events
+    let running = Arc::new(AtomicBool::new(true));
+    let running_clone = running.clone();
+
+    thread::spawn(move || {
+        while running_clone.load(Ordering::Relaxed) {
+            if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+                println!("Hotkey pressed: {:?}", event);
+                match capture_screen() {
+                    Ok(paths) => println!("Screenshot saved: {}", paths),
+                    Err(e) => eprintln!("Screenshot failed: {}", e),
+                }
+            }
+            thread::sleep(std::time::Duration::from_millis(100));
+        }
+    });
+
     match tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![greet, capture_screen])
         .run(tauri::generate_context!())
     {
-        Ok(_) => println!("Tauri application exited successfully"),
+        Ok(_) => {
+            running.store(false, Ordering::Relaxed);
+            println!("Tauri application exited successfully");
+        }
         Err(e) => {
+            running.store(false, Ordering::Relaxed);
             eprintln!("Error running Tauri application: {}", e);
             std::process::exit(1);
         }
