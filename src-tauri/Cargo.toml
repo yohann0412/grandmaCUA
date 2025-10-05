@@ -11,11 +11,12 @@ edition = "2021"
 tauri-build = { version = "1", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = ["shell-open"] }
+tauri = { version = "1", features = ["shell-open", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 screenshots = "0.7"
 global-hotkey = "0.5"
+objc = "0.2"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

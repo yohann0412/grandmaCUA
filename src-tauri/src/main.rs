@@ -102,6 +102,33 @@ fn main() {
     });
 
     match tauri::Builder::default()
+        .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                // Build transparent, borderless, always-on-top, click-through overlay window
+                let overlay = tauri::WindowBuilder::new(
+                    app,
+                    "overlay",
+                    tauri::WindowUrl::App("overlay.html".into()),
+                )
+                .visible(true)
+                .transparent(true)
+                .decorations(false)
+                .resizable(false)
+                .always_on_top(true)
+                .title("")
+                .build();
+
+                if let Ok(window) = overlay {
+                    let _ = window.set_fullscreen(true);
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = window.set_ignore_cursor_events(true);
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![greet, capture_screen])
         .run(tauri::generate_context!())
     {

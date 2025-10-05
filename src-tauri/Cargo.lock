@@ -1202,6 +1202,7 @@ name = "grandmahelp"
 version = "0.1.0"
 dependencies = [
  "global-hotkey",
+ "objc",
  "screenshots",
  "serde",
  "serde_json",
